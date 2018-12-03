@@ -47,12 +47,8 @@
            (draw-claim (first claims) grid))))
 
 (defn check-claim [c grid]
-  (println "check-claim" c (type grid))
   (let [points-2d (extract-points c)
         points-1d (map point-to-index points-2d)]
-    (println "points-ed" points-2d)
-    (println "points-1d" points-1d)
-    (println "points-1d" (type points-1d))
 
     (loop [points points-1d]
       (cond 
