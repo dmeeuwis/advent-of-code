@@ -1,3 +1,5 @@
+(require '[clojure.pprint :as pp])
+
 (defn count-minutes [start-time end-time]
   (let [s (java.time.LocalDateTime/parse (clojure.string/replace start-time " " "T"))
         e (java.time.LocalDateTime/parse (clojure.string/replace end-time " " "T"))]
@@ -52,15 +54,33 @@
       (throw (RuntimeException. (str "No match for input: " (first raw)))))))
 
 (let [records (-> (first *command-line-args*) slurp (clojure.string/split #"\n") sort)
-      guard-minutes (read-records records)
-      guard-times (reduce-kv (fn [m k v] (assoc m k (count (flatten v))))
+      guard-minutes (read-records records)]
+
+  ; part 1 soln
+  (let [guard-times (reduce-kv (fn [m k v] (assoc m k (count (flatten v))))
                              {}
                              guard-minutes)
-      sleepiest-guard (first (last (sort-by val guard-times)))
-      sleepiest-guard-minutes (guard-minutes sleepiest-guard)
-      freqs (frequencies (flatten sleepiest-guard-minutes))
-      sleepiest-minute (first (last (sort-by val freqs)))]
+        sleepiest-guard (first (last (sort-by val guard-times)))
+        sleepiest-guard-minutes (guard-minutes sleepiest-guard)
+        freqs (frequencies (flatten sleepiest-guard-minutes))
+        sleepiest-minute (first (last (sort-by val freqs)))]
       
-      (println "Sleepiest guard" sleepiest-guard
-               "was sleepiest minute at" sleepiest-minute (type sleepiest-minute)
-               "so answer is" (* (Integer/parseInt sleepiest-guard) sleepiest-minute)))
+        (println "Sleepiest guard" sleepiest-guard
+                 "was sleepiest minute at" sleepiest-minute (type sleepiest-minute)
+                 "so answer is" (* (Integer/parseInt sleepiest-guard) sleepiest-minute)))
+
+
+  ; part 2 soln
+
+  (let [guard-top-minutes (reduce-kv (fn [m k v]
+                            (assoc m k (-> v flatten frequencies (->> (sort-by val)) last)))
+                            {} guard-minutes)
+        sorted (sort-by #(second (val %)) guard-top-minutes) 
+        winner (last sorted)]
+
+    (println "Guard sleepy minutes:")
+    (pp/pprint guard-top-minutes)
+
+    (println "Sleepiest minute of all is:" winner)
+    (println "So answer is" (* (Integer/parseInt (first winner)) 
+                               (first (second winner))))))
