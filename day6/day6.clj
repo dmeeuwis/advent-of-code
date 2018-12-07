@@ -22,23 +22,50 @@
                    (for [i (range 0 (count points))]
                      [(nth points i) i]))]
     (println "Indexed" indexed)
-    (for [x (range 0 (inc x-range))
-          y (range 0 (inc y-range))]
+    (for [y (range 0 (inc y-range))
+          x (range 0 (inc x-range))]
 
           (let [distances-for-this-point (map (fn [z] [z (distance [x y] z)]) points)]
             (if (>= (.indexOf points [x y]) 0)
-              (do
-                (println "Saw a real point!" (indexed [x y]) [x y])
-                (.toUpperCase (int-to-char (indexed [x y]))))
+              (int-to-char (indexed [x y]))
               (find-shortest-distance-or-tie indexed distances-for-this-point))))))
 
 (defn print-matrix [arr x-range]
-  (println "print-matrix:" (count arr) x-range)
   (doseq [i (range 0 (count arr))]
     (do
       (print (nth arr i))
       (if (zero? (mod (inc i) (inc x-range)))
         (println)))))
+
+(defn find-edges [points x-range y-range]
+  (let [positions (for [y (range 0 (inc y-range)), x (range 0 (inc x-range))] [x y])]
+    (loop [p positions, edges #{}]
+      (if (empty? p)
+        edges
+
+        (let [f (first p)]
+          (recur (rest p)
+                 (if (or 
+                       (= 0 (first f))
+                       (= 0 (second f))
+                       (= x-range (first f))
+                       (= y-range (second f)))
+                   (do
+                     (let [i (+ (* (second f) (inc x-range)) (first f))]
+                       (conj edges (nth points i))))
+
+                   edges)))))))
+
+(defn count-letters [d]
+  (loop [s d counts {}]
+  (if (empty? s)
+    counts
+
+    (recur (rest s)
+           (assoc counts (first s) (inc (or 
+                                          (counts (first s))
+                                           0)))))))
+
 
 (let [data (-> (first *command-line-args*) 
                slurp 
@@ -47,8 +74,19 @@
                vec)
       
       x-range (apply max (map first data))
-      y-range (apply max (map second data)) ]
+      y-range (apply max (map second data)) 
+      
+      distance-matrix (make-distance-matrix x-range y-range data) ]
 
-  (print-matrix
-    (make-distance-matrix x-range y-range data)
-    x-range))
+; (print-matrix distance-matrix x-range)
+
+  (let [edges (find-edges distance-matrix x-range y-range)
+        counts (count-letters distance-matrix)
+        live-counts (apply dissoc counts edges) 
+        best (first (reverse (sort-by val live-counts)))
+       ]
+;   (println "Edges are:" edges)
+;   (println "Counts are:" counts)
+;   (println "Live Counts are:" live-counts)
+    (println "Best is:" best "->" (inc (second best)))))
+        
