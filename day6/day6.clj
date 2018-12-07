@@ -88,5 +88,5 @@
 ;   (println "Edges are:" edges)
 ;   (println "Counts are:" counts)
 ;   (println "Live Counts are:" live-counts)
-    (println "Best is:" best "->" (inc (second best)))))
+    (println "Best is:" best "->" (second best))))
         
