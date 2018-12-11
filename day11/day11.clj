@@ -1,14 +1,11 @@
 (ns dmeeuwis.advent2018 
   (:require [clojure.string :as string]))
 
-(defn rack-id [x]
-  (+ 10 x))
-
 (defn power-level [x y serial]
-  (-> (rack-id x)
+  (-> (+ 10 x)
       (* y)
       (+ serial)
-      (* (rack-id x))
+      (* (+ 10 x))
       (#(.toString %))
       (string/reverse)
       (#(.substring % 2 3))
@@ -27,10 +24,14 @@
          (chart [xi yi]))))
 
 (let [serial (-> (first *command-line-args*) slurp (#(.trim %)) (#(Integer/parseInt %)))]
-  (let [power-chart (power-board serial)
-        power 3
-        power-grids (for [y (range 1 (- 301 power)), x (range 1 (- 301 power))]
-                      [ [x y] (find-grid-power power-chart x y power)])
-        top (first (reverse (sort-by second power-grids)))]
- 
-    (println "Top grid:" top)))
+  (let [power-chart (power-board serial)]
+    (doall
+      (pmap 
+        (fn [power]
+          (let [ power-grids (for [y (range 1 (- 301 power)), x (range 1 (- 301 power))]
+                          [ [x y] (find-grid-power power-chart x y power)])
+                 top (first (reverse (sort-by second power-grids)))]
+       
+            (println "Top grid for power:" power top)
+            top))
+        (range 1 301)))))
