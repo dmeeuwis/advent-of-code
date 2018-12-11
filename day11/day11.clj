@@ -21,26 +21,16 @@
     (for [y (range 1 301), x (range 1 301)]
       [[x y] (power-level x y serial)]))) 
 
-(defn find-grid-power [chart x y size]
-  (apply + 
-    (for [yi (range y (+ y size))
-          xi (range x (+ x size))]
+(defn find-grid-power [chart x y power]
+  (apply + (for [xi (range x (min 301 (+ x power)))
+                 yi (range y (min 301 (+ y power)))]
+         (chart [xi yi]))))
 
-      (or (chart [xi yi]) 0))))
-
-(let [serial (-> (first *command-line-args*) slurp (#(.trim %)) (#(Integer/parseInt %)))
-      power-chart (power-board serial)
-      curr-power (atom nil)
-      power-grids (pmap (fn [power]
-                    (for [y (range 1 (- 301 power)), x (range 1 (- 301 power))]
-                      (do
-                        (if (not= @curr-power power)
-                          (do
-                            (reset! curr-power power)
-                            (println "Now at power" power)))
-                        [ [x y power] (find-grid-power power-chart x y power)])))
-                    (reverse (range 3 4)))
-      top (sort-by second power-grids)]
+(let [serial (-> (first *command-line-args*) slurp (#(.trim %)) (#(Integer/parseInt %)))]
+  (let [power-chart (power-board serial)
+        power 3
+        power-grids (for [y (range 1 (- 301 power)), x (range 1 (- 301 power))]
+                      [ [x y] (find-grid-power power-chart x y power)])
+        top (first (reverse (sort-by second power-grids)))]
  
-    (println "Top powers" (map second top))
-    (println "Top grid with power" (second (first top))))
+    (println "Top grid:" top)))
