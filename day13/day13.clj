@@ -36,32 +36,18 @@
            (= "-" grid-el))
       old-dir
 
-      (and (= ">" old-dir) (= "/" grid-el))
-      "^"
-
-      (and (= ">" old-dir) (= "\\" grid-el))
-      "v"
-
-      (and (= "<" old-dir) (= "\\" grid-el))
-      "^"
-
-      (and (= "<" old-dir) (= "/" grid-el))
-      "v"
+      (and (= ">" old-dir) (= "/" grid-el)) "^"
+      (and (= ">" old-dir) (= "\\" grid-el)) "v"
+      (and (= "<" old-dir) (= "\\" grid-el)) "^"
+      (and (= "<" old-dir) (= "/" grid-el)) "v"
 
       (and (or (= "^" old-dir) (= "v" old-dir)) (= "|" grid-el))
       old-dir
 
-      (and (= "^" old-dir) (= "/" grid-el))
-      ">"
-
-      (and (= "^" old-dir) (= "\\" grid-el))
-      "<"
-
-      (and (= "v" old-dir) (= "/" grid-el))
-      "<"
-
-      (and (= "v" old-dir) (= "\\" grid-el))
-      ">"
+      (and (= "^" old-dir) (= "/" grid-el)) ">"
+      (and (= "^" old-dir) (= "\\" grid-el)) "<"
+      (and (= "v" old-dir) (= "/" grid-el)) "<"
+      (and (= "v" old-dir) (= "\\" grid-el)) ">"
 
       (= "+" grid-el)
       (go-through old-dir memory)
@@ -69,15 +55,17 @@
      :default (throw (RuntimeException. (str "Could not match " old-dir " " grid-el))))))
 
 (defn find-collisions [c others]
-  (cond 
-    (empty? others)
-    nil
+  (loop [colls [] o others]
+    (cond 
+      (empty? o)
+      colls
 
-    (and (= (:x c) (:x (first others)))
-         (= (:y c) (:y (first others))))
-    [(:x c), (:y c)]
+      (and (= (:x c) (:x (first o)))
+           (= (:y c) (:y (first o))))
+      (recur (conj colls [c (first o)])
+             (rest o))
 
-    :default (recur c (rest others))))
+      :default (recur colls (rest o)))))
 
 (defn move-cart [grid cart]
   (let [moved-cart
@@ -106,35 +94,50 @@
         (recur
           (rest cs)
           (conj new-carts moved-cart)
-          (if collisions 
-            (concat colls collisions)
-            colls))))))
+          (concat colls collisions))))))
 
-
-(defn find-carts [grid]
+(defn find-carts-in-starting-grid [grid]
   (remove nil?
     (for [y (range 0 (count grid))
           x (range 0 (count (first grid)))]
       (if (carts (loc grid x y))
-        { :x x, :y y, :dir (loc grid x y) :intersect :left }))))
+        { :id (.toString (java.util.UUID/randomUUID)) 
+          :x x, :y y, :dir (loc grid x y) :intersect :left }))))
 
 (defn strip-carts-from-map [grid]
   (map #(replace cart-pos-replacements %) grid))
+
+(defn drop-carts [all dropping]
+  (if (empty? dropping)
+    all
+    (recur (remove #(= (:id (first dropping)) (:id %))
+                   all)
+          (rest dropping))))
 
 (let [init-grid (-> (first *command-line-args*)
                     (slurp)
                     (string/split #"\n")
                     (->> (map #(string/split % #""))))
-      orig-carts  (find-carts init-grid)
+      orig-carts  (find-carts-in-starting-grid init-grid)
       grid (strip-carts-from-map init-grid)]
 
-  (println "Starting with carts:" orig-carts)
-  (println "Found collision:" 
-    (loop [turn 0, carts orig-carts, steps []]
-     ;(println "Step" turn)
+  (println "Starting with " (count orig-carts) "carts" orig-carts)
+  (println "Found final cart:" 
+    (loop [turn 0, carts orig-carts]
       (let [sorted-carts (sort-by (fn [x] [(:y x) (:x x)]) carts)
             step-out (do-step grid sorted-carts)]
-       ;(println "Step-out" step-out)
-        (if (not= 0 (count (:collisions step-out)))
-          { :turn turn :collision (:collisions step-out) }
-          (recur (inc turn), (:carts step-out), (conj steps step-out)))))))
+
+        (let [collisions (set (flatten (:collisions step-out)))
+              carts-left (drop-carts (:carts step-out) (flatten (:collisions step-out)))]
+
+          (if (not= 0 (count collisions))
+            (do
+              (println "Saw collisions on turn" turn ";" collisions)
+              (println (count carts-left) "carts left")
+              (println carts-left "\n\n")))
+
+
+          (if (= 1 (count carts-left))
+          { :turn turn :cart (first carts-left) }
+
+          (recur (inc turn), carts-left)))))))
