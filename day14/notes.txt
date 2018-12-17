@@ -1,0 +1,3 @@
+Initial implementation using native clojure lists was too, due to spending a lot of time in (count). Switched to using java ArrayLists. 
+
+Also had initial performance problems on part 2 by doing full .indexOf scans of the board on every pass. Switched to doing .indexOf on only the end of the board.
