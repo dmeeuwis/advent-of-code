@@ -160,7 +160,7 @@
   (println "Saw" (count initial-players) "players")
   (println "Saw map size" (count (first initial-map)) "x" (count initial-map))
   (draw-board initial-map)
-  
+
   (try 
     (loop [round 0, players initial-players]
       (println "Round" round)
@@ -169,5 +169,9 @@
         
     (catch Exception e
       (case (:type (ex-data e))
-        :game-over (println "Game won" (ex-data e))
+        :game-over (let [result (ex-data e)
+                         _ (println "Result is" result)
+                         hp-remaining (apply + (map :hp (:players result)))]
+                     (println "In" (dec (:round result)) "rounds, hp remaining" hp-remaining
+                              "so outcome is" (* (dec (:round result)) hp-remaining)))
         (throw e)))))
