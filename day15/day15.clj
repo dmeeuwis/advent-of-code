@@ -1,6 +1,7 @@
 (ns dmeeuwis.advent2018
   (:require [clojure.string :as string]
             [com.rpl.specter :as sp]))
+(declare *grid-width* *grid-height*)
 
 (defn read-map-line [map-line col]
   (loop [s (string/split map-line #""), line [], chars [], i 0]
@@ -33,9 +34,7 @@
       (recur (assoc index [(:x p) (:y p)] p)
              pr))))
 
-
 (defn draw-players-on-board [grid players]
-  (println players)
   (loop [ng grid, p players]
     (if (empty? p)
       ng
@@ -66,18 +65,23 @@
     [ (+ (:x p) (first adj-pos)) 
       (+ (:y p) (second adj-pos))]))
 
-(defn all-open-adjacent [grid p]
-  (map #([(+ (:x p) (first %)) 
-          (+ (:y p) (second %))])
-    (filter #(= "."
-               (nth (nth grid (+ (p :y) (second %)))
-                            (+ (p :x) (first %))))
-           [ [0 -1] [-1 0] [1 0] [0 1] ])))
+(defn all-open-adjacent 
+  ([grid p]
+   (if (contains? p :x)
+     (all-open-adjacent grid (:x p) (:y p))
+     (all-open-adjacent grid (first p) (second p))))
+
+  ([grid x y]
+    (doall (map (fn [p] [(+ x  (first p)) 
+                  (+ y (second p))])
+      (filter #(= "."
+                 (nth (nth grid (+ y (second %)))
+                              (+ x (first %))))
+             [ [0 -1] [-1 0] [1 0] [0 1] ])))))
 
 
 (defn attack [attacker victim]
   (assoc victim :hp (- (:hp victim) (:attack attacker))))
-
 
 (defn vector-rm [base rm] 
   (loop [b base coll []] 
@@ -91,7 +95,7 @@
 
 (defn find-in-range [grid targets]
   (sort 
-    (let [target-locs (map #([ (:x %) (:y %)]) targets)]
+    (let [target-locs (map (fn [t] [ (:x t) (:y t)]) targets)]
       (vector-rm 
         (loop [in-range [], p targets]
           (if (empty? p)
@@ -100,58 +104,103 @@
                    (rest p))))
         target-locs))))
 
-(defn move-to-closest [players in-range player-index]
-  (assoc players player-index 
-         (assoc (nth players player-index)
-                :x (first (in-range :x))
-                :y (first (in-range :y)))))
+(defn find-route 
+  ([grid start end]
+   ;(println "find-route starting from" start end)
+   (find-route grid start end [] #{}))
+
+  ([grid current end path visited]
+    (cond
+      (= current end) ; this was a successful branch!
+      (conj path current)
+
+      (visited current) ; looped onto a point we already visisted, end this branch
+      nil
+
+      :default
+      (sp/setval [sp/ALL nil?] sp/NONE
+        (doall (map 
+          #(find-route grid % end
+                        (conj path current)
+                        (conj visited current))
+          (all-open-adjacent grid current)))))))
+
+(defn map-sort [pos-a pos-b]
+  (let [score (fn [x] (+ (* (second x) *grid-width*)
+                         (first x)))]
+    (compare (score pos-a) (score pos-b))))
+
+(defn move-to-closest [grid players in-range player-index]
+  (let [player (nth players player-index)
+        route-fn (partial find-route grid [(:x player) (:y player)])
+        nested-all (map route-fn in-range)
+        all-paths (sp/select (sp/walker vector?) nested-all)] 
+
+    (if (empty? all-paths)
+      ; if no viable move, do nothing
+      (nth players player-index)
+
+      ; otherwise do shorted, in reading order
+      (let [sorted (sort-by count all-paths)
+            length (count (first sorted))
+            all-of-that-length (filter #(= (count %) length) all-paths) 
+            first-steps (sort map-sort (map second all-of-that-length))]
+        (let [first-step (first first-steps)]
+          (assoc (nth players player-index)
+                 :x (first first-step)
+                 :y (second first-step)))))))
 
 (defn vec-rm [coll pos]
   (vec (concat (subvec coll 0 pos) (subvec coll (inc pos)))))
 
-(defn player-action [round grid players i]
-  (let [indexed (index-by-position players)]
-    ; enemy present: attack!
-    (if-let [adjacent-enemy-pos (find-adjacent grid (nth players i))]
+(defn try-attack [grid players i]
+  (if-let [adjacent-enemy-pos (find-adjacent grid (nth players i))]
+    (let [indexed (index-by-position players)]
       (let [adjacent-enemy (indexed adjacent-enemy-pos)
             updated-enemy (attack (nth players i) adjacent-enemy)
-            _ (println "Updated enemy to" updated-enemy)
-            updated-index (.indexOf players adjacent-enemy)
-            _ (println "Located enemy as" updated-index)]
+            updated-index (.indexOf players adjacent-enemy)]
         (if (<= (:hp updated-enemy) 0)
           (do
             (println "Enemy defeated!" updated-enemy updated-index players)
-            (sp/setval updated-index sp/NONE players))
+            (sp/setval [(sp/nthpath updated-index)] sp/NONE players))
           (do
             (println "Enemy hit!" updated-enemy updated-index)
-            (assoc (vec players) updated-index updated-enemy))))
+            (sp/setval [(sp/nthpath updated-index)] updated-enemy players)))))))
 
-      ; no enemy immediately present
-      (let [enemies (filter #(= (:type %) (enemy ((nth players i) :type))) players)
-            in-range (find-in-range grid enemies)]
+(defn player-action [round grid players i]
+  (if-let [updated (try-attack grid players i)]
+    updated
 
-        ; if none at all in range, we've won!
-        (if (empty? in-range)
-          (throw (ex-info "Game won!" { :type :game-over
-                   :round round :players players :winner (nth players i) }))
+    ; no enemy immediately present
+    (let [enemies (filter #(= (:type %) (enemy ((nth players i) :type))) players)
+          in-range (find-in-range grid enemies)]
 
-          ; move!
-          (let [updated-player (move-to-closest (nth players i) in-range)]
-            (println "Player moved!" i updated-player)
-            (assoc (vec players) i updated-player)))))))
+      ; if none at all in range, we've won!
+      (if (empty? in-range)
+        (throw (ex-info "Game won!" { :type :game-over
+                 :round round :players players :winner (nth players i) }))
+
+        ; move!
+        (let [updated-player (move-to-closest grid players in-range i)
+              updated-all (sp/setval [(sp/nthpath i)] updated-player players)]
+
+          ; after moving, allowed to try an attack
+          (if-let [move-attack (try-attack grid updated-all i)]
+            move-attack
+            updated-all))))))
 
 (defn game-round [round players, grid]
-  (let [sorted-players (sort-by (fn [p] [(:x p) (:y p)]) players)
-        rounds-map (draw-players-on-board grid sorted-players)]
+  (println "After" round "rounds")
+  (draw-board (draw-players-on-board grid players))
 
-    (draw-board rounds-map)
-
+  (let [sorted-players (sort-by (fn [p] [(:x p) (:y p)]) players)]
     (loop [p sorted-players, i 0]
-      (if (>= i (count p))
-        p
-        (recur 
-          (player-action round rounds-map p i)
-          (inc i))))))
+      (let [rounds-map (draw-players-on-board grid p)]
+        (if (>= i (count p))
+          p
+          (recur 
+            (player-action round rounds-map p i)
+            (inc i)))))))
 
 (let [[initial-map initial-players] (-> (first *command-line-args*)
                      (slurp)
@@ -159,7 +208,8 @@
                      (read-map))]
   (println "Saw" (count initial-players) "players")
   (println "Saw map size" (count (first initial-map)) "x" (count initial-map))
-  (draw-board initial-map)
+  (def *grid-width* (count (first initial-map)))
+  (def *grid-height* (count initial-map))
 
   (try 
     (loop [round 0, players initial-players]
