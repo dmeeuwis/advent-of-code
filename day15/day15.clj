@@ -175,7 +175,7 @@
           in-range (find-in-range grid enemies)]
 
       ; if none at all in range, we've won!
-      (if (empty? in-range)
+      (if (empty? enemies)
         (throw (ex-info "Game won!" { :type :game-over
                  :round round :players players :winner (nth players i) }))
 
@@ -219,6 +219,6 @@
         :game-over (let [result (ex-data e)
                          _ (println "Result is" result)
                          hp-remaining (apply + (map :hp (:players result)))]
-                     (println "In" (dec (:round result)) "rounds, hp remaining" hp-remaining
-                              "so outcome is" (* (dec (:round result)) hp-remaining)))
+                     (println "In" (:round result) "rounds, hp remaining" hp-remaining
+                              "so outcome is" (* (:round result) hp-remaining)))
         (throw e)))))
