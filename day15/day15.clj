@@ -1,7 +1,6 @@
 (ns dmeeuwis.advent2018
   (:require [clojure.string :as string]
             [com.rpl.specter :as sp]))
-(declare *grid-width* *grid-height*)
 
 (defn read-map-line [map-line col]
   (loop [s (string/split map-line #""), line [], chars [], i 0]
@@ -125,8 +124,8 @@
                         (conj visited current))
           (all-open-adjacent grid current)))))))
 
-(defn map-sort [pos-a pos-b]
-  (let [score (fn [x] (+ (* (second x) *grid-width*)
+(defn map-sort [grid pos-a pos-b]
+  (let [score (fn [x] (+ (* (second x) (count (first grid)))
                          (first x)))]
     (compare (score pos-a) (score pos-b))))
 
@@ -144,7 +143,7 @@
       (let [sorted (sort-by count all-paths)
             length (count (first sorted))
             all-of-that-length (filter #(= (count %) length) all-paths) 
-            first-steps (sort map-sort (map second all-of-that-length))]
+            first-steps (sort #(map-sort grid %1 %2) (map second all-of-that-length))]
         (let [first-step (first first-steps)]
           (assoc (nth players player-index)
                  :x (first first-step)
@@ -208,8 +207,6 @@
                      (read-map))]
   (println "Saw" (count initial-players) "players")
   (println "Saw map size" (count (first initial-map)) "x" (count initial-map))
-  (def *grid-width* (count (first initial-map)))
-  (def *grid-height* (count initial-map))
 
   (try 
     (loop [round 0, players initial-players]
