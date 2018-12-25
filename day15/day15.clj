@@ -11,7 +11,8 @@
                (conj line (if (or (= "G" ch) (= "E" ch)) "." ch))
                (if
                  (or (= "G" ch) (= "E" ch))
-                 (conj chars { :type ch :attack 3 :hp 200 :x i :y col })
+                 (conj chars { :id (java.util.UUID/randomUUID) 
+                               :type ch :attack 3 :hp 200 :x i :y col })
                  chars)
                (inc i))))))
 
@@ -174,7 +175,7 @@
             (sp/setval [(sp/nthpath updated-index)] updated-enemy players)))))))
 
 (defn player-action [round grid players i]
-  (println "player-action" round i)
+  (println "player-action" round i (nth players i))
   (if-let [updated (try-attack grid players i)]
     updated
 
@@ -185,7 +186,7 @@
       ; if none at all in range, we've won!
       (if (empty? enemies)
         (throw (ex-info "Game won!" { :type :game-over
-                 :round round :players players :winner (nth players i) }))
+                 :grid grid :round round :players players :winner (nth players i) }))
 
         ; move!
         (let [updated-player (move-player grid players in-range i)
@@ -196,18 +197,31 @@
             move-attack
             updated-all))))))
 
+(defn find-index [pred coll]
+  (loop [i 0, c coll]
+    (cond 
+      (empty? c) nil
+      (pred (first c)) i
+      :default (recur (inc i) (rest c)))))
+
 (defn game-round [round players, grid]
   (println "Entering round" round)
   (draw-board (draw-players-on-board grid players))
 
-  (let [sorted-players (sort-by (fn [p] [(:x p) (:y p)]) players)]
-    (loop [p sorted-players, i 0]
-      (let [rounds-map (draw-players-on-board grid p)]
-        (if (>= i (count p))
-          p
-          (recur 
-            (player-action round rounds-map p i)
-            (inc i)))))))
+  (let [sorted-players (sort map-sort players)
+        sorted-ids (map :id sorted-players)]
+    (loop [p sorted-players, ordered-ids (map :id sorted-players)]
+      (if (empty? ordered-ids)
+        p
+
+        (let [rounds-map (draw-players-on-board grid p)]
+          (let [i (find-index #(= (:id %) (first ordered-ids)) p)]
+            (if i
+              (let [updated-players (player-action round rounds-map p i)]
+                (recur 
+                    updated-players
+                    (rest ordered-ids)))
+              (recur p (rest ordered-ids)))))))))
 
 (let [[initial-map initial-players] (-> (first *command-line-args*)
                      (slurp)
@@ -226,6 +240,7 @@
         :game-over (let [result (ex-data e)
                          _ (println "Result is" result)
                          hp-remaining (apply + (map :hp (:players result)))]
+                     (draw-board (:grid result))
                      (println "In" (:round result) "rounds, hp remaining" hp-remaining
                               "so outcome is" (* (:round result) hp-remaining)))
         (throw e)))))
