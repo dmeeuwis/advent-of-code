@@ -56,14 +56,28 @@
 
 ; this assumes enemies are drawn on board
 (def enemy {"G" "E", "E" "G"})
-(defn find-adjacent [grid p]
-  (if-let [adj-pos (first 
-                      (filter #(= (enemy (:type p))
-                                 (nth (nth grid (+ (p :y) (second %)))
+
+; returns the grid position of the adjacent enemy to attack; or nil.
+(defn find-adjacent-pos [grid p indexed]
+  (let [adj-pos (filter #(= (enemy (:type p))
+                               (nth (nth grid (+ (p :y) (second %)))
                                               (+ (p :x) (first %))))
-                             [ [0 -1] [-1 0] [1 0] [0 1] ]))]
-    [ (+ (:x p) (first adj-pos)) 
-      (+ (:y p) (second adj-pos))]))
+                             [ [0 -1] [-1 0] [1 0] [0 1] ])]
+    (if (empty? adj-pos)
+      nil
+      (do
+        (println "adj-pos" adj-pos p)
+        (let [positions (map (fn [z] [ (+ (:x p) (first z)) 
+                                       (+ (:y p) (second z))])
+                             adj-pos)
+              _ (println "positions" positions)
+              enemies (map indexed positions)
+              _ (println "enemies" enemies)
+              enemies-by-hp (sort-by :hp enemies)
+              _ (println "enemies-by-hp" enemies-by-hp)
+              victim (first enemies-by-hp)
+              _ (println "victim is" victim)]
+          [(:x victim) (:y victim)])))))
 
 (defn all-open-adjacent 
   ([grid p]
@@ -161,8 +175,8 @@
                :y (second first-step))))))
 
 (defn try-attack [grid players i]
-  (if-let [adjacent-enemy-pos (find-adjacent grid (nth players i))]
-    (let [indexed (index-by-position players)]
+  (let [indexed (index-by-position players)]
+    (if-let [adjacent-enemy-pos (find-adjacent-pos grid (nth players i) indexed)]
       (let [adjacent-enemy (indexed adjacent-enemy-pos)
             updated-enemy (attack (nth players i) adjacent-enemy)
             updated-index (.indexOf players adjacent-enemy)]
@@ -208,7 +222,7 @@
   (println "Entering round" round)
   (draw-board (draw-players-on-board grid players))
 
-  (let [sorted-players (sort map-sort players)
+  (let [sorted-players (sort-by (fn [p] [(:y p) (:x p)]) players)
         sorted-ids (map :id sorted-players)]
     (loop [p sorted-players, ordered-ids (map :id sorted-players)]
       (if (empty? ordered-ids)
