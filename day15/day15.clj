@@ -91,6 +91,17 @@
                coll
                (conj coll (first b)))))))
 
+(defn find-distances[grid queue parents]
+  (if (empty? queue)
+    parents
+
+    (let [curr (peek queue)
+         adjacent (all-open-adjacent grid curr)
+         new-adjacent (filter #(not (contains? parents %)) adjacent)]
+
+         (recur grid 
+                (apply conj (pop queue) new-adjacent)
+                (reduce #(assoc %1 %2 curr) parents new-adjacent)))))
 
 (defn find-in-range [grid targets]
   (sort 
@@ -103,54 +114,50 @@
                    (rest p))))
         target-locs))))
 
-(defn find-route 
-  ([grid start end]
-   ;(println "find-route starting from" start end)
-   (find-route grid start end [] #{}))
-
-  ([grid current end path visited]
-    (cond
-      (= current end) ; this was a successful branch!
-      (conj path current)
-
-      (visited current) ; looped onto a point we already visisted, end this branch
-      nil
-
-      :default
-      (sp/setval [sp/ALL nil?] sp/NONE
-        (doall (map 
-          #(find-route grid % end
-                        (conj path current)
-                        (conj visited current))
-          (all-open-adjacent grid current)))))))
-
 (defn map-sort [grid pos-a pos-b]
+  (println "map-sort" pos-a pos-b)
   (let [score (fn [x] (+ (* (second x) (count (first grid)))
                          (first x)))]
-    (compare (score pos-a) (score pos-b))))
+    (compare [(score (last pos-a)) (score (second pos-a))] 
+             [(score (last pos-b)) (score (second pos-b))] )))
 
-(defn move-to-closest [grid players in-range player-index]
+(defn find-path-from-parents [parents target start]
+  ; loop through parents to find the next step on the best path
+  (loop [curr target, prev nil, path (list target)]
+    (if (= start curr)
+      path
+
+      (if (nil? (parents curr))
+        nil ; impossible to get to target
+
+        (recur (parents curr) curr (conj path curr))))))
+
+(defn find-route [grid start in-range]
+  (let [parents (find-distances grid 
+                        (conj clojure.lang.PersistentQueue/EMPTY start)
+                        {})
+        paths (remove nil? (map #(find-path-from-parents parents % start) in-range))
+        in-range-distances (doall (map (fn [x] [x (count x)]) paths))
+        sorted-dists (sort-by second in-range-distances)
+        shortest (filter #(= (second %) (second (first sorted-dists))) sorted-dists)
+        _ (if (> (count shortest) 1) (println "Multiple shortest! Selecting!" shortest))
+        shortest-in-reading-order (sort #(map-sort grid %1 %2) (map #(-> % first) shortest))
+        ]
+
+    (first shortest-in-reading-order)))
+
+
+(defn move-player [grid players in-range player-index]
   (let [player (nth players player-index)
-        route-fn (partial find-route grid [(:x player) (:y player)])
-        nested-all (map route-fn in-range)
-        all-paths (sp/select (sp/walker vector?) nested-all)] 
-
-    (if (empty? all-paths)
-      ; if no viable move, do nothing
-      (nth players player-index)
-
-      ; otherwise do shorted, in reading order
-      (let [sorted (sort-by count all-paths)
-            length (count (first sorted))
-            all-of-that-length (filter #(= (count %) length) all-paths) 
-            first-steps (sort #(map-sort grid %1 %2) (map second all-of-that-length))]
-        (let [first-step (first first-steps)]
-          (assoc (nth players player-index)
-                 :x (first first-step)
-                 :y (second first-step)))))))
-
-(defn vec-rm [coll pos]
-  (vec (concat (subvec coll 0 pos) (subvec coll (inc pos)))))
+        route (find-route grid [(:x player) (:y player)] in-range)
+        first-step (first route)] 
+    (if (nil? route)
+      player
+      (do
+        (println "Moving!" first-step player)
+        (assoc player
+               :x (first first-step)
+               :y (second first-step))))))
 
 (defn try-attack [grid players i]
   (if-let [adjacent-enemy-pos (find-adjacent grid (nth players i))]
@@ -167,6 +174,7 @@
             (sp/setval [(sp/nthpath updated-index)] updated-enemy players)))))))
 
 (defn player-action [round grid players i]
+  (println "player-action" round i)
   (if-let [updated (try-attack grid players i)]
     updated
 
@@ -180,7 +188,7 @@
                  :round round :players players :winner (nth players i) }))
 
         ; move!
-        (let [updated-player (move-to-closest grid players in-range i)
+        (let [updated-player (move-player grid players in-range i)
               updated-all (sp/setval [(sp/nthpath i)] updated-player players)]
 
           ; after moving, allowed to try an attack
@@ -189,7 +197,7 @@
             updated-all))))))
 
 (defn game-round [round players, grid]
-  (println "After" round "rounds")
+  (println "Entering round" round)
   (draw-board (draw-players-on-board grid players))
 
   (let [sorted-players (sort-by (fn [p] [(:x p) (:y p)]) players)]
@@ -210,7 +218,6 @@
 
   (try 
     (loop [round 0, players initial-players]
-      (println "Round" round)
         (let [round-result (game-round round players initial-map)]
           (recur (inc round) round-result)))
         
