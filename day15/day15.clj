@@ -65,19 +65,13 @@
                              [ [0 -1] [-1 0] [1 0] [0 1] ])]
     (if (empty? adj-pos)
       nil
-      (do
-        (println "adj-pos" adj-pos p)
         (let [positions (map (fn [z] [ (+ (:x p) (first z)) 
                                        (+ (:y p) (second z))])
                              adj-pos)
-              _ (println "positions" positions)
               enemies (map indexed positions)
-              _ (println "enemies" enemies)
               enemies-by-hp (sort-by :hp enemies)
-              _ (println "enemies-by-hp" enemies-by-hp)
-              victim (first enemies-by-hp)
-              _ (println "victim is" victim)]
-          [(:x victim) (:y victim)])))))
+              victim (first enemies-by-hp)]
+          [(:x victim) (:y victim)]))))
 
 (defn all-open-adjacent 
   ([grid p]
@@ -130,7 +124,6 @@
         target-locs))))
 
 (defn map-sort [grid pos-a pos-b]
-  (println "map-sort" pos-a pos-b)
   (let [score (fn [x] (+ (* (second x) (count (first grid)))
                          (first x)))]
     (compare [(score (last pos-a)) (score (second pos-a))] 
@@ -155,9 +148,7 @@
         in-range-distances (doall (map (fn [x] [x (count x)]) paths))
         sorted-dists (sort-by second in-range-distances)
         shortest (filter #(= (second %) (second (first sorted-dists))) sorted-dists)
-        _ (if (> (count shortest) 1) (println "Multiple shortest! Selecting!" shortest))
-        shortest-in-reading-order (sort #(map-sort grid %1 %2) (map #(-> % first) shortest))
-        ]
+        shortest-in-reading-order (sort #(map-sort grid %1 %2) (map #(-> % first) shortest)) ]
 
     (first shortest-in-reading-order)))
 
@@ -168,11 +159,9 @@
         first-step (first route)] 
     (if (nil? route)
       player
-      (do
-        (println "Moving!" first-step player)
-        (assoc player
-               :x (first first-step)
-               :y (second first-step))))))
+      (assoc player
+             :x (first first-step)
+             :y (second first-step)))))
 
 (defn try-attack [grid players i]
   (let [indexed (index-by-position players)]
@@ -181,15 +170,10 @@
             updated-enemy (attack (nth players i) adjacent-enemy)
             updated-index (.indexOf players adjacent-enemy)]
         (if (<= (:hp updated-enemy) 0)
-          (do
-            (println "Enemy defeated!" updated-enemy updated-index players)
-            (sp/setval [(sp/nthpath updated-index)] sp/NONE players))
-          (do
-            (println "Enemy hit!" updated-enemy updated-index)
-            (sp/setval [(sp/nthpath updated-index)] updated-enemy players)))))))
+          (sp/setval [(sp/nthpath updated-index)] sp/NONE players)
+          (sp/setval [(sp/nthpath updated-index)] updated-enemy players))))))
 
 (defn player-action [round grid players i]
-  (println "player-action" round i (nth players i))
   (if-let [updated (try-attack grid players i)]
     updated
 
@@ -218,9 +202,9 @@
       (pred (first c)) i
       :default (recur (inc i) (rest c)))))
 
-(defn game-round [round players, grid]
-  (println "Entering round" round)
-  (draw-board (draw-players-on-board grid players))
+(defn game-round [power round players, grid]
+ ;(println "Entering round" round "with elf power" power)
+ ;(draw-board (draw-players-on-board grid players))
 
   (let [sorted-players (sort-by (fn [p] [(:y p) (:x p)]) players)
         sorted-ids (map :id sorted-players)]
@@ -237,24 +221,69 @@
                     (rest ordered-ids)))
               (recur p (rest ordered-ids)))))))))
 
-(let [[initial-map initial-players] (-> (first *command-line-args*)
-                     (slurp)
-                     (string/split #"\n")
-                     (read-map))]
-  (println "Saw" (count initial-players) "players")
-  (println "Saw map size" (count (first initial-map)) "x" (count initial-map))
+(defn count-elves [players]
+  (count (filter #(= (:type %) "E") players)))
 
-  (try 
-    (loop [round 0, players initial-players]
-        (let [round-result (game-round round players initial-map)]
-          (recur (inc round) round-result)))
-        
-    (catch Exception e
-      (case (:type (ex-data e))
-        :game-over (let [result (ex-data e)
-                         _ (println "Result is" result)
-                         hp-remaining (apply + (map :hp (:players result)))]
-                     (draw-board (:grid result))
-                     (println "In" (:round result) "rounds, hp remaining" hp-remaining
-                              "so outcome is" (* (:round result) hp-remaining)))
-        (throw e)))))
+(defn part-1 []
+  (let [[initial-map initial-players] (-> (first *command-line-args*)
+                       (slurp)
+                       (string/split #"\n")
+                       (read-map))
+         elf-count (count-elves initial-players)]
+    (println "Saw" (count initial-players) "players")
+    (println "Saw map size" (count (first initial-map)) "x" (count initial-map))
+
+    (try 
+      (loop [round 0, players initial-players]
+          (let [round-result (game-round 3 round players initial-map)]
+            (recur (inc round) round-result)))
+          
+      (catch Exception e
+        (case (:type (ex-data e))
+          :game-over (let [result (ex-data e)
+                           hp-remaining (apply + (map :hp (:players result)))]
+                       (draw-board (:grid result))
+                       (println "Part 1: In" (:round result) "rounds, hp remaining" hp-remaining
+                                "so outcome is" (* (:round result) hp-remaining)))
+          (throw e))))))
+
+(defn set-elf-power [players elf-power]
+  (loop [coll [], p players]
+    (if (empty? p)
+      coll
+      (if (= "E" (:type (first p)))
+        (recur (conj coll (assoc (first p) :attack elf-power))
+               (rest p))
+        (recur (conj coll (first p))
+               (rest p))))))
+
+(defn part-2 []
+  (let [[initial-map initial-players] (-> (first *command-line-args*)
+                       (slurp)
+                       (string/split #"\n")
+                       (read-map))
+         elf-count (count-elves initial-players)]
+    (println "Saw" (count initial-players) "players")
+    (println "Saw map size" (count (first initial-map)) "x" (count initial-map))
+    (println "\n\n========== Part 2 =======================\n\n")
+    (doall (for [elf-power (range 4 999999)]
+      (try 
+        (loop [round 0, players (set-elf-power initial-players elf-power)]
+            (let [round-result (game-round elf-power round players initial-map)]
+              (recur (inc round) round-result)))
+            
+        (catch Exception e
+          (case (:type (ex-data e))
+            :game-over (let [result (ex-data e)
+                             game-elf-count (count-elves (:players result))
+                             hp-remaining (apply + (map :hp (:players result)))]
+                         (if (= elf-count game-elf-count)
+                           (do 
+                             (println "Part 2: For elf power" elf-power "no elves were killed!")
+                             (draw-board (:grid result))
+                             (println "Part 2: Outcome:" (* (:round result) hp-remaining))
+                             (System/exit 0))))
+            :default (throw e))))))))
+
+(part-1)
+(part-2)
