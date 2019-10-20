@@ -70,7 +70,7 @@
   (let [next-pos [(inc-fn (x pos)) (y pos)]
         next-char (grid-get grid next-pos)]
     (cond 
-      (some #(= next-char %) ["#" "|" "~"])
+      (some #(= next-char %) ["#"])
       { :type :stop :pos pos }
 
       (= (grid-get grid (down next-pos)) ".")
@@ -99,6 +99,8 @@
   (doall (for [row grid] (println (string/join row)))))
 
 (defn do-flow [water-positions grid bounds]
+  (println "\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+  (println "======================================================================")
   (println "do-flow" water-positions)
   (print-grid grid)
 
@@ -122,11 +124,11 @@
       (if (> (y down-pos) (last bounds))
         (do
           (println "Passed end of grid!" (y water) "out of max" (last bounds))
-          (recur (rest water-positions) grid bounds))
+          (do-flow (rest water-positions) grid bounds))
 
         (cond 
           (= down-char ".") 
-          (recur (conj (rest water-positions) down-pos)
+          (do-flow (conj (rest water-positions) down-pos)
                  (grid-set grid down-pos "|")
                  bounds)
 
@@ -135,16 +137,16 @@
               (= down-char "~"))
           (let [spill-result (spill water grid)]
               (println "Saw spill result!" (spill-result :flow-points))
-              (print-grid (spill-result :grid))
+              ;(print-grid (spill-result :grid))
                        
-              ; if spill marked char as ~ then we need to upflow
+              ; if no where to spill out to, then need to upflow
               (if (empty? (spill-result :flow-points))
                 ; ! add min-y check here
                 (do 
                   (println "No flow-points found, upflowing to" (up water))
                   (do-flow (conj (rest water-positions) (up water)) (spill-result :grid) bounds))
 
-                ; otherwise char was | and we can recur on one or two flow down points
+                ; otherwise char was | and we can do-flow on one or two flow down points
                 (do 
                   (println "Flow-pounts found" (spill-result :flow-points))
                   (do-flow (concat (rest water-positions) (spill-result :flow-points)) (spill-result :grid) bounds))))
@@ -163,6 +165,7 @@
     (let [final (do-flow [[source-x 0]] grid bounds)
           count-water (count (filter #(or (= "|" %) (= "~" %)) (flatten final)))]
       (println "Final solution! Count is" count-water)
-      (print-grid final))))
+      ;(print-grid final)
+      )))
 
 (main)
