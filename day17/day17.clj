@@ -22,13 +22,13 @@
 (defn draw [clay xmin xmax ymin ymax]
   (let [one-dimensional
           (for [y (range ymin (inc ymax))
-                x (range xmin (inc xmax))]
+                x (range (- xmin 10) (inc xmax))]
             (let [p [x y]]
               (cond 
                 (clay p) "#"
                 (= [500 0] p) "+"
                 :default ".")))]
-    (mapv vec (partition (- (inc xmax) xmin) one-dimensional))))
+    (mapv vec (partition (- (inc xmax) (- xmin 10)) one-dimensional))))
 
 (defn find-bounds [points]
   (loop [p points, xmin Integer/MAX_VALUE, xmax Integer/MIN_VALUE, ymin Integer/MAX_VALUE, ymax Integer/MIN_VALUE]
@@ -41,10 +41,7 @@
              (max ymax (second (first p)))))))
 
 (defn grid-get [grid pos]
-  (try 
-    (nth (nth grid (y pos)) (x pos))
-    (catch java.lang.IndexOutOfBoundsException e
-      nil)))
+  (nth (nth grid (y pos)) (x pos)))
 
 (defn grid-set [grid pos set-val]
   (println "grid-set" pos set-val)
@@ -73,7 +70,7 @@
       (some #(= next-char %) ["#"])
       { :type :stop :pos pos }
 
-      (= (grid-get grid (down next-pos)) ".")
+      (some #(= (grid-get grid (down next-pos)) %) ["." "|"])
       { :type :flow :pos next-pos }
 
       :default
@@ -98,60 +95,93 @@
 (defn print-grid [grid]
   (doall (for [row grid] (println (string/join row)))))
 
-(defn do-flow [water-positions grid bounds]
-  (println "\n\n\n\n\n\n\n\n\n\n\n\n\n\n")
+(def flow-count 0)
+
+(defn do-flow [water-positions grid bounds seen upflow]
+  (println "\n\n")
   (println "======================================================================")
-  (println "do-flow" water-positions)
-  (print-grid grid)
+  (println "do-flow" flow-count water-positions upflow)
+
+  (def flow-count (+ flow-count 1))
+  (if (or (= 10700 flow-count) (= 6678 flow-count) (= 1694 flow-count))
+    (print-grid grid))
 
   (if (empty? water-positions)
-    grid
+    (do
+      (println "Ran out of water! Returning grid.")
+      (print-grid grid)
+      ; need to subtract 5 due to the first clay platform not starting until y=5, so discount first 5 | lines from source
+      (println "Saw water count as" (- (count (filter #(or (= "|" %) (= "~" %)) (flatten grid))) 5))
+      (println "Saw remaining count as" (count (filter #(= "~" %) (flatten grid))))
+      grid)
 
     (let [water (first water-positions)
           down-pos (down water)
-          down-char (grid-get grid down-pos)]
+          down-char (grid-get grid [(x down-pos) (min (last bounds) (y down-pos))])
+          new-seen (conj seen water)]
 
-      (println "bounds is" bounds)
-      (println "(last bounds) is" (last bounds))
       (println "water is" water)
-      (println "(y water) is" (y water))
-      (println "(down water) is" (down water))
+      (println "water-char is" (grid-get grid water))
       (println "down-pos is" down-pos)
       (println "down-char is" down-char)
+      (println "last y is" (last bounds))
+      (println "range check is" (>= (y down-pos) (last bounds)))
 
+      (cond 
 
-      ; if the water fall past the map, it is finished
-      (if (> (y down-pos) (last bounds))
+        ; if the water fall past the map, it is finished.
+        (or
+          (>= (y down-pos) (inc (last bounds)))
+          (and (seen water) (not upflow)))
         (do
-          (println "Passed end of grid!" (y water) "out of max" (last bounds))
-          (do-flow (rest water-positions) grid bounds))
+          (println "Will pass end of grid!" (y down-pos) "past last" (last bounds))
+          (do-flow (rest water-positions) grid bounds new-seen false))
 
-        (cond 
-          (= down-char ".") 
-          (do-flow (conj (rest water-positions) down-pos)
-                 (grid-set grid down-pos "|")
-                 bounds)
+        (= down-char ".") 
+        (do-flow (conj (rest water-positions) down-pos)
+               (grid-set grid down-pos "|")
+               bounds
+               new-seen
+               false)
 
-          (or (= down-char "#")
-              (= down-char "|")
-              (= down-char "~"))
-          (let [spill-result (spill water grid)]
-              (println "Saw spill result!" (spill-result :flow-points))
-              ;(print-grid (spill-result :grid))
-                       
-              ; if no where to spill out to, then need to upflow
-              (if (empty? (spill-result :flow-points))
-                ; ! add min-y check here
-                (do 
-                  (println "No flow-points found, upflowing to" (up water))
-                  (do-flow (conj (rest water-positions) (up water)) (spill-result :grid) bounds))
+        ; if hitting an existing stream, then just merge into it
+        (= down-char "|")
+        (do-flow (conj (rest water-positions) down-pos)
+                 grid 
+                 bounds
+                 new-seen
+                 false)
 
-                ; otherwise char was | and we can do-flow on one or two flow down points
-                (do 
-                  (println "Flow-pounts found" (spill-result :flow-points))
-                  (do-flow (concat (rest water-positions) (spill-result :flow-points)) (spill-result :grid) bounds))))
-          
-          :default (throw (Exception. (str "Nothing to see here?? " (or down-char "falsey")))))))))
+        ; if hitting clay, then spill out sideways
+        (or (= down-char "#")
+            (= down-char "~"))
+        (let [spill-result (spill water grid)]
+            (println "Saw spill result!" (spill-result :flow-points))
+            ;(print-grid (spill-result :grid))
+                     
+            ; if no where to spill out to, then need to upflow
+            (if (empty? (spill-result :flow-points))
+              ; ! add min-y check here
+              (do 
+                (println "No flow-points found, upflowing to" (up water))
+                (do-flow (conj (rest water-positions) (up water)) 
+                         (spill-result :grid) 
+                         bounds
+                         new-seen
+                         true))
+
+              ; otherwise char was | and we can do-flow on one or two flow down points
+              (do 
+                (println "Flow-pounts found" (spill-result :flow-points))
+                (do-flow (concat (rest water-positions) 
+                                 (spill-result :flow-points)) 
+                         (spill-result :grid) 
+                         bounds
+                         new-seen
+                         false)))
+        
+        :default 
+        grid)))))
                 
 (defn main[]
   (let [input (-> (first *command-line-args*)
@@ -162,10 +192,6 @@
         grid (apply draw (set input) bounds)
         source-x (.indexOf (first grid) "+") ]
 
-    (let [final (do-flow [[source-x 0]] grid bounds)
-          count-water (count (filter #(or (= "|" %) (= "~" %)) (flatten final)))]
-      (println "Final solution! Count is" count-water)
-      ;(print-grid final)
-      )))
+    (do-flow [[source-x 0]] grid bounds #{} false)))
 
 (main)
