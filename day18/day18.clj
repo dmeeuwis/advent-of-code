@@ -1,6 +1,8 @@
 (ns dmeeuwis.advent2018
   (:require [clojure.string :as str]))
 
+(def cache (atom {}))
+
 (defn read-in-board [filepath]
   (-> filepath
       slurp
@@ -55,14 +57,27 @@
            (score-point x y board)))))
 
 (defn print-n-times [n limit board]
-  (if (zero? (mod n 10000))
-    (do 
-      (println "Step" n "at" (str (format "%3f" (* 100 (double (/ n limit)))) "%"))
-      (print-board board)))
+  (do 
+    (println "\n\nStep" n "at" (str (format "%3f" (* 100 (double (/ n limit)))) "%"))
+    (print-board board))
 
   (if (> n limit)
     board
-    (recur (inc n) limit (compute-grid-step (buff-board board)))))
+    (if (@cache board)
+      ; this block should only happen once in a simulation
+      (let [repeat-period (- n (@cache board))
+            times-left-to-go (- 1000000000 n)
+            until-final-repeat (mod times-left-to-go repeat-period)]
+
+        (println "At step" n "saw repeat board from step" (@cache board))
+        (println "Period between repeats" repeat-period)
+        (println "Times left to go" times-left-to-go)
+        (println "Times left to go" times-left-to-go "mod 28 =>" until-final-repeat)
+        (reset! cache {})
+        (recur 1 (dec until-final-repeat) (compute-grid-step (buff-board board))))
+      (do 
+        (swap! cache #(assoc % board n))
+        (recur (inc n) limit (compute-grid-step (buff-board board)))))))
 
 (defn count-chars [board char]
   (count (filter #(= % char) (flatten board))))
@@ -75,4 +90,5 @@
     (println label woods "woods x" lumberyards "lumberyards gives" (* woods lumberyards))))
 
 (run-simulation "Part 1" 10)
+(reset! cache {})
 (run-simulation "Part 2" 1000000000)
