@@ -2,6 +2,7 @@ import sys
 from collections import namedtuple
 
 GRID_SIZE = 20000
+#GRID_SIZE = 600
 start = (int(GRID_SIZE/2), int(GRID_SIZE/2))
 
 grid = [ ['.' for j in range(GRID_SIZE)] for i in range(GRID_SIZE)]
@@ -30,36 +31,52 @@ def parse(line):
     instructions = list(map(parse_instruction, text_instructions))
     return instructions
 
-def apply_instruction(grid, current, instruction, intersects, track_points):
+def apply_instruction(grid, current, instruction, intersects, track_points, movements, point_movements):
     print(instruction)
     nc = current
 
     for i in range(instruction.distance):
         nc = (nc[0] + instruction.movement[0], nc[1] + instruction.movement[1])
         y, x = nc
+        loc = (y, x)
 
         if grid[y][x] == '.':
             grid[y][x] = instruction.char
         elif grid[y][x] != instruction.char and not track_points.get( (y,x) ):
             grid[y][x] = 'X'
-            intersects.append([y,x])
+            intersects.append(loc)
 
-        track_points[(y,x)] = True
-    return nc
+        track_points[loc] = True
+
+        if not point_movements.get(loc):
+            point_movements[loc] = movements
+
+        movements += 1
+
+    return nc, movements
 
 lines = read_file(sys.argv[1])
 intersects = []
+point_movements = [ {}, {} ]
 
-for l in lines:
+for line_index, line in enumerate(lines):
     location = start
     track_points = { location: True }
-    for i in parse(l):
-        location = apply_instruction(grid, location, i, intersects, track_points)
+    movements = 1
+    for i in parse(line):
+        location, movements = apply_instruction(grid, location, i, intersects, track_points, movements, point_movements[line_index])
+
 
 print_grid(grid)
 
 intersects_adjusted = [ [x[0] - start[0], x[1] - start[1]] for x in intersects]
 distances = [abs(x[0]) + abs(x[1]) for x in intersects_adjusted]
+print("Line 1 points:", point_movements[0])
+#print("Line 2 points:", point_movements[1])
+print("Intersects", intersects)
+steps = [point_movements[0][loc] + point_movements[1][loc] for loc in intersects]
 print(intersects_adjusted)
 print(distances)
-print("Max distance is", min(distances))
+print(steps)
+print("Min distance is", min(distances))
+print("Min steps is", min(steps))
