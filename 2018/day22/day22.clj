@@ -47,8 +47,49 @@
       (reduce +
         (for [j (range (inc (second target)))]
           (let [r (erosian-risk (erosion-type (erosion-level i j depth target)))]
-               (println "Risk:" i j r)
                r))))))
+
+(def tools {
+            :rocky [ :climbing :torch ]
+            :wet   [ :climbing :neither ]
+            :narrow [ :torch :neither ]
+            })
+
+(defn common [l1 l2]
+  (doall
+    (for [e l1]
+      (if (.contains l2 e)
+        e))))
+
+(defn descend [x y minutes equip depth target seen]
+  (if (= [x y] target)
+    (do
+      (println "Saw target" x y "currently equipped" equip minutes)
+      (if (= equip :torch)
+        minutes
+        (+ 7 minutes))) ; to equip the torch
+
+    (let [terrain (erosion-type (erosion-level x y depth target))
+          nseen (conj seen [x y])
+          dirs
+            (doall (for [ [dx dy] [ [-1 0] [1 0] [0 1] [0 -1] ]]
+              (if (and (>= (+ dx x) 0) (>= (+ dy y) y) 
+                       (<= (+ dx x) (* 2 (first target)))
+                       (<= (+ dy y) (* 2 (second target)))
+                       (not (contains? nseen [(+ dx x) (+ dy y)])))
+                (let [target-terrain (erosion-type (erosion-level (+ dx x) (+ dy y) depth target))]
+                  (println "Descending to" (+ dx x) (+ dy y))
+                  (descend (+ dx x) (+ dy y)
+                           (if (.contains (tools target-terrain) equip)
+                             (+ minutes 1)
+                             (+ minutes 7 1))
+                           ; we'll need to switch to whatever is common tool between where we are, and where we are going
+                           (common (tools terrain) (tools target-terrain))
+                           depth target nseen)))))
+          ]
+
+          (println "From " x y "saw" dirs)
+          (min dirs))))
 
 (let [lines (-> (first *command-line-args*) (slurp) (string/split #"\n"))
       depth (-> (first lines) (string/split #" ") second Integer/parseInt)
@@ -63,4 +104,5 @@
             typ (erosion-type ero)]
         (println x y "geo" geo "erosian-level" ero "type" typ)))))
 
-  (println "calculate-risk:" (calculate-risk depth target)))
+  (println "calculate-risk:" (calculate-risk depth target))
+  (println "descend: " (descend 0 0 0 :torch depth target #{})))
