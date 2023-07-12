@@ -17,6 +17,10 @@ class Move
   end
 end
 
+def manhattan(pt1, pt2)
+  (pt1[0]-pt2[0]).abs + (pt1[1]-pt2[1]).abs
+end
+
 OFFSETS = { 'R' => [0,1], 'D' => [1,0], 'L' => [0,-1], 'U' => [-1,0] }
 def parse(line)
   text_instructions = line.split ','
@@ -70,6 +74,8 @@ lines.each_with_index do |line, line_index|
 end
 
 puts "Intersects are #{intersects}"
+manhattens = intersects.map { |x| manhattan x, start }
+puts "Manhatten distances: #{manhattens}"
 
 distances = intersects.map { |x|  x[0].abs + x[1].abs }
 steps = intersects.map { |loc| point_movements[0][loc] + point_movements[1][loc] }
