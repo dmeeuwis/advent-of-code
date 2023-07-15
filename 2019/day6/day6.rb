@@ -55,12 +55,3 @@ for p in you_parents
     exit(0)
   end
 end
-
-# Part 2: apply djistra's algorithm to find shorted distance from YOU to SAN
-#visited = {}
-#distance = {}
-#orbits.keys.each do |p|
-#  visited[p] = nil
-#  distance[p] = Float::INFINITY
-#end
-#unvisited = Set.new(orbits.keys)
