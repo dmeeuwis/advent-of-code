@@ -12,8 +12,7 @@ def parse_map(hash, input, from_sym, to_sym)
   destination, source, range = $1.to_i, $2.to_i, $3.to_i
 
   0..range.times do |i|
-    hash[{ :type => from_sym, :address => source +i }] = { :type => to_sym, :address => destination+i }
-    #puts "#{ {:type => from_sym, :address => source +i } } => #{hash[{ :type => from_sym, :address => source +i }]}}"
+    hash[source +i] = destination+i 
   end
   hash
 end
@@ -30,17 +29,20 @@ maps = [ [:seed, :soil],
          [:temperature,:humidity],
          [:humidity, :location]
 ]
+
+hashmaps = {} 
+maps.each { |pair| hashmaps[pair] = Hash.new { |h, k| h[k] = k } }
+
 mapmap = {}
 maps.each do |pair|
   mapmap[pair[0]] = pair[1]
 end
 
-bigmap = Hash.new { |h, k| h[k] = { :type => mapmap[k[:type]], :address => k[:address]} }
 maps.each do |pair|
     puts pair.inspect
     while !lines.empty? && !lines[0].empty? do
-      #puts lines[0]
-      parse_map(bigmap, lines.shift, pair[0], pair[1])
+      puts lines[0]
+      parse_map(hashmaps[pair], lines.shift, pair[0], pair[1])
     end
 
     lines.shift
@@ -50,10 +52,8 @@ end
 min_seed = 99999
 seeds.each do |seed|
   puts "Seed #{seed}"
-  chain = { :type => :seed, :address => seed}
-  #puts "\t#{chain}"
   maps.each do |pair|
-    chain = bigmap[chain]
+    chain = hashmaps[pair][seed]
     #puts "\t#{chain}"
   end
   puts "End of seed #{seed} is #{chain}"
