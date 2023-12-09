@@ -23,37 +23,56 @@ desert.keys.each do |key|
     starting_nodes.push key
   end
 end
+puts "Found #{starting_nodes.size} ending nodes: #{starting_nodes}"
 
-pos = starting_nodes
+ending_nodes = []
+desert.keys.each do |key|
+  if key[-1] == 'A'
+  ending_nodes.push key
+  end
+end
+puts "Found #{ending_nodes.size} ending nodes: #{ending_nodes}."
+
+pos = starting_nodes.clone
 puts "Starting at #{starting_nodes}"
 steps = 0
 loop_steps = starting_nodes.map { -1 }
 
-seen = Set.new
-
 while !pos.all? { |p| p.nil? }
   dir = rl.next
 
+
+
   pos.each_with_index do |p, index|
-    next if p == nil
-    step_index = steps % rl_line.size
-    key = [index, dir, p, step_index]
-    if seen === key
-      puts "Found a loop #{key} at step #{steps}"
-      n = desert[p][directions[dir]]
-      puts "Next would have been #{n}"
+    next if p.nil?
+    pos[index] = desert[p][directions[dir]]
+    #puts "=> #{pos}, #{steps} steps"
+
+    if p[-1] == 'Z'
       pos[index] = nil
+      puts "Found Z Ending #{p} for #{starting_nodes[index]} #{index} at steps #{steps}"
       loop_steps[index] = steps
-      break
-    else
-      seen.add key
-      n = desert[p][directions[dir]]
-      puts "#{key} => #{n} (#{steps})"
-      pos[index] = n
     end
   end
   steps += 1
 end
+
+puts loop_steps
+
+#  pos.each_with_index do |p, index|
+#   next if p == nil
+#   n = desert[p][directions[dir]]
+#   steps += 1
+#   #puts "#{p} => #{n} (#{steps})"
+#   pos[index] = n
+
+#   if n[-1] == 'Z'
+#     pos[index] = nil
+#     puts "Found Z ending for #{index} at #{steps}"
+#     loop_steps[index] = steps
+#   end
+# end
+#end
 
 puts "Found loops at: #{loop_steps}"
 lcm = loop_steps.reduce(1) { |acc, n| acc.lcm(n) }
