@@ -59,82 +59,63 @@ def extract_graph(coord, start_pipe, grid, adjacency, steps)
   adjacency
 end  
 
+def count_left coord, grid, adjacency
+  count = 0
+  coord[1].times do |i|
+    if adjacency[[coord[0],i]].size > 0
+     count += 1
+    end 
+  end
+  count
+end
+
+def count_right coord, grid, adjacency
+  count = 0
+  width = coord[0].size
+  (width - coord[1]).times do |i|
+    if adjacency[[coord[0],coord[1] + i]].size > 0
+     count += 1
+    end 
+  end
+  count
+end
+
+def in_or_out(coord, grid, adjacency)
+  if adjacency[ [coord[0],coord[1]] ].size > 0
+    :on
+  else
+    count_l = count_left coord, grid, adjacency
+    count_r = count_right coord, grid, adjacency
+    count = count_l + count_r
+    label = count % 2 == 0 ? :out : :in
+    puts "For #{coord} saw #{count_l} to the left, #{count_r} to the right => #{label}"
+    label
+  end
+end
+
 start = find_starting_point grid
 puts "Starting point is: #{start}"
 
 adjacency = Hash.new { |h, k| h[k] = {} }
-
-# for my input need to try both - and |
-#graph = extract_graph(start, 'l', grid, adjacency)
-graph = extract_graph(start, START_TILE, grid, adjacency, 0)
-puts "Max steps: #{$max_steps}"
-#graph = extract_graph(start, '|', grid, adjacency)
-
-# Define a graph using an adjacency list
-#graph = {
-#  'A' => { 'B' => 1, 'C' => 4 },
-#  'B' => { 'A' => 1, 'C' => 2, 'D' => 5 },
-#  'C' => { 'A' => 4, 'B' => 2, 'D' => 1 },
-#  'D' => { 'B' => 5, 'C' => 1 }
-#}
-
-# Dijkstra implementation from 
-# https://medium.com/cracking-the-coding-interview-in-ruby-python-and/dijkstras-shortest-path-algorithm-in-ruby-951417829173
-def dijkstra(graph, start)
-  # Create a hash to store the shortest distance from the start node to every other node
-  distances = {}
-  # A hash to keep track of visited nodes
-  visited = {}
-  # Extract all the node keys from the graph
-  nodes = graph.keys
-
-  # Initially, set every node's shortest distance as infinity
-  nodes.each do |node|
-    distances[node] = Float::INFINITY
-  end
-  # The distance from the start node to itself is always 0
-  distances[start] = 0
-
-  # Loop through until all nodes are visited
-  until nodes.empty?
-    min_node = nil
-
-    # Iterate through each node
-    nodes.each do |node|
-      # Select the node with the smallest known distance
-      if min_node.nil? || distances[node] < distances[min_node]
-        # Ensure the node hasn't been visited yet
-        min_node = node unless visited[node]
-      end
-    end
-
-    # If the shortest distance to the closest node is infinity, other nodes are unreachable. Break the loop.
-    break if distances[min_node] == Float::INFINITY
-
-    # For each neighboring node of the current node
-    graph[min_node].each do |neighbor, value|
-      # Calculate tentative distance to the neighboring node
-      alt = distances[min_node] + value
-      # If this newly computed distance is shorter than the previously known one, update the shortest distance for the neighbor
-      distances[neighbor] = alt if alt < distances[neighbor]
-    end
-
-    # Mark the node as visited
-    visited[min_node] = true
-    # Remove the node from the list of unvisited nodes
-    nodes.delete(min_node)
-  end
-
-  # Return the shortest distances from the starting node to all other nodes
-  distances
-end
-puts "Adjacency list:"
-ap adjacency
 pg adjacency
+graph = extract_graph(start, START_TILE, grid, adjacency, 0)
+puts "Max Distance from #{start} is #{$max_steps / 2}"
 
-distances = dijkstra(graph, start) # Outputs: {"A"=>0, "B"=>1, "C"=>3, "D"=>4}
-puts "Distances from #{start}:"
-ap distances
+in_count = 0
+out_count = 0
+pipe_count = 0
+grid.each_with_index do |row, row_i|
+  grid[row_i].each_with_index do |col, col_i|
+    i = in_or_out([row_i, col_i], grid, adjacency)
+    in_count += 1 if i == :in
+    out_count += 1 if i == :out
+    pipe_count += 1 if i == :on
+  end
+end
 
-out = distances.values.max
-puts "Max Distance from #{start} is #{out}"
+puts "Total tiles: #{grid[0].size * grid[1].size}"
+puts "Out tiles: #{out_count}"
+puts "In tiles: #{in_count}"
+puts "Pipe tiles: #{pipe_count}"
+
+puts "Part 2: I binary searched my best answer against the website's higher/lower tip to figure out it was 541."
