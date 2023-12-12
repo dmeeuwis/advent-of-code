@@ -47,7 +47,7 @@ def throw_away(combos, check)
   end
 end
 
-sum = 0
+sum_p1 = 0
 lines.each do |input|
   puts "Input #{input}"
 
@@ -56,7 +56,7 @@ lines.each do |input|
 
   matching = throw_away(all, input[1])
   puts "Only #{matching.size} matched."
-  sum += matching.size
+  sum_p1 += matching.size
 
   puts matching.inspect
 
@@ -64,4 +64,23 @@ lines.each do |input|
 end
 
 puts
-puts "Total: #{sum}"
+puts "Total: #{sum_p1}"
+
+sum_p2 = 0
+lines.each do |input|
+  input[0] = ([input[0]] * 5).join('?')
+  input[1] = input[1] * 5
+
+  puts "Sprung: #{input}"
+  all =  generate(input[0])
+  puts "Found #{all.size} strings."
+
+  matching = throw_away(all, input[1])
+  puts "Only #{matching.size} matched."
+  sum_p2 += matching.size
+
+  puts matching.inspect
+
+  puts
+end
+puts "Part two: #{sum_p2}"
