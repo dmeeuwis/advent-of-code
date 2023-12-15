@@ -23,11 +23,12 @@ def reflect_col? map, check_index, smudge
   cols_left = check_index
   cols_right = map[0].size - check_index
   cols_to_check = [cols_left, cols_right].min
-  puts "cols_to_check: #{cols_to_check}"
+  #puts "cols_to_check: #{cols_to_check}"
   return false if cols_to_check <= 0
+  #byebug if check_index == 4
 
   diffs = []
-  (0..(map[0].size)).each do |col_i|
+  (0..cols_to_check).each do |col_i|
     #puts "Checking col #{col_i} of #{map.size}"
     col_lf = check_index + col_i - 1
     col_rt = check_index - col_i 
@@ -43,16 +44,24 @@ def reflect_col? map, check_index, smudge
 
   puts "Diffs.size = #{diffs.size}"
 
-  if !smudge && diffs.size == 1
-    puts "-------------------> Found a COL smudge! Correcting #{diffs[0]} to ."
-    map[row_i][col_i] = map[row_i][col_i] == '#' ? '.' : '#'
-    return reflect_col? map, check_index, false
+  if smudge && diffs.size == 1 
+    puts diffs.inspect
+    row_i, col_i = diffs[0]
+    replace = map[row_i][col_i] == '#' ? '.' : '#'
+    puts "------------------> Found a COL smudge at #{check_index}! Correcting #{row_i}, #{col_i} #{map[row_i][col_i]} to #{replace}"
+    print_map map
+    map[row_i][col_i] = replace
+    puts
+    print_map map
+    #return reflect_row? map, check_index, false
+    return find_reflection map, false
   end
 
-  if smudge && diffs.size == 0
+  if !smudge && diffs.size == 0
     puts "Found a COL reflection at row = #{check_index}!!!!! <--------------------------" if diffs == 0
   end
-  diffs == []
+  
+  false
 end
 
 def print_map(map)
@@ -63,29 +72,28 @@ end
 
 def reflect_row? map, check_index, smudge
 
-  puts "========== COLS #{check_index} =============="
-  cols_to_check = [map.size - check_index, check_index].min
-  #puts "cols_to_check: #{cols_to_check}"
-  return false if cols_to_check <= 0
+  puts "========== ROWS #{check_index} =============="
+  rows_to_check = [map.size - check_index, check_index].min
+  #puts "rows_to_check: #{rows_to_check}"
+  return false if rows_to_check <= 0
 
   diffs = []
-  (0..cols_to_check).each do |row_i|
+  (0..rows_to_check).each do |row_i|
     row_up = check_index + row_i - 1
     row_dn = check_index - row_i 
 
     (0..(map[row_up].size)).each do |col_i|
       if map[row_up][col_i] != map[row_dn][col_i]
         diffs.push [row_up, col_i]
-        puts "Saw diff! #{row_up},#{col_i} #{map[row_up][col_i]} != #{row_dn},#{col_i} #{map[row_up][col_i]}"
+        #puts "Saw diff! #{row_up},#{col_i} #{map[row_up][col_i]} != #{row_dn},#{col_i} #{map[row_up][col_i]}"
       end
     end
   end
 
-  byebug if check_index == 3
-  puts "Diffs.size = #{diffs.size}"
-  puts "========== ROWS #{check_index} =============="
+  puts "ROWS Diffs.size = #{diffs.size}, #{smudge}"
 
-  if smudge && diffs.size == 1
+  if smudge && (diffs.size == 1 || diffs.size == 2)
+    puts diffs.inspect
     row_i, col_i = diffs[0]
     replace = map[row_i][col_i] == '#' ? '.' : '#'
     puts "------------------> Found a ROW smudge at #{check_index}! Correcting #{row_i}, #{col_i} #{map[row_i][col_i]} to #{replace}"
@@ -93,16 +101,19 @@ def reflect_row? map, check_index, smudge
     map[row_i][col_i] = replace
     puts
     print_map map
-    return reflect_row? map, check_index, false
+    #return reflect_row? map, check_index, false
+    return find_reflection map, false
   end
 
   if !smudge && diffs.size == 0
     puts "Found a ROW reflection at #{check_index}!!!!! <--------------------------" if diffs == 0
+    return true
   end
-  diffs == 0
+
+  false
 end
 
-def find_reflection(map)
+def find_reflection(map, smudge)
   # try from 1 to n-1, calc differences between sides
   puts
   puts
@@ -110,7 +121,7 @@ def find_reflection(map)
 
   # cols
   (1..map[0].size).each do |n|
-    if reflect_col?(map, n, true)
+    if reflect_col?(map, n, smudge)
       add = n
       puts "adding #{add}"
       return add
@@ -119,7 +130,7 @@ def find_reflection(map)
 
   #puts "Rows"
   (1..map.size).each do |n|
-    if reflect_row?(map, n, true) 
+    if reflect_row?(map, n, smudge) 
       add = n * 100
       puts "adding #{add}"
       return add
@@ -130,6 +141,9 @@ def find_reflection(map)
   raise "No reflection!"
 end
 
-sums = maps.map { |m| find_reflection m }
+sums = maps.map do |m| 
+  puts "\n\n\n\n\n\n\n\nNew map!!!!\n"
+  find_reflection m, true
+end
 sum = sums.sum
 puts "Sum is #{sum}"
