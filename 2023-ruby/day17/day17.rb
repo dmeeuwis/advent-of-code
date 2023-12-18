@@ -1,75 +1,61 @@
-require 'byebug'
+require 'algorithms'
 require 'set'
-require 'colorize'
-
-def pg(grid)
-  grid.each do |row|
-    puts row.join ""
-  end 
-  nil
-end
-
-DIRS = [ 
-    [ 1,  0], # down
-    [ 0,  1], # right
-    [ 0, -1], # left
-    [-1,  0], # up
-]
-
-def target grid
-  [grid.size-1, grid[0].size-1]
-end
-
-def turn(grid, y, x, dir, steps_taken, positions, heat_loss)
-  #puts "#{y}, #{x}, #{dir}, #{heat_loss} #{steps_taken.size}, #{positions.inspect}"
-  if [y, x] == target(grid)
-    puts "Reached exit in #{steps_taken.size} steps! #{[[heat_loss], steps_taken].inspect}"
-    return [heat_loss]
-  end
-
-  ways = []
-  DIRS.each do |next_dir|
-    # never go back
-    if (dir[0] != 0 && dir[0] == -1 * next_dir[0]) || (dir[1] != 0 && dir[1] == -1 * next_dir[1])
-     # puts "Can't go back #{dir} !=> #{next_dir}"
-      next
-    end
-
-    ny = y + next_dir[0]
-    nx = x + next_dir[1]
-
-    # don't go out of map
-    if nx < 0 || ny < 0 || nx >= grid[0].size || ny >= grid.size
-      #puts "Can't go out of grid #{y}, #{x} !=> #{ny}, #{nx}"
-      next
-    end
-
-    # can't go more than 3 times in the same dir
-    if dir == next_dir && steps_taken.size >= 3 &&
-      steps_taken[-1] == dir && steps_taken[-2] == dir && steps_taken[-3] == dir
-      next
-    end
-
-    if !(positions.index([ny, nx]).nil?)
-      #puts "Can't repeat a step [#{ny} #{nx}] #{positions.inspect}"
-      next
-    end
-    #next if $seen.include? [ny, nx, next_dir]
-    #$seen.add [ny, nx, next_dir] # ignores 3 steps taken! Problem?
-
-    ways += turn(grid, ny, nx, next_dir, steps_taken + [next_dir], positions + [[ny, nx]], heat_loss + grid[ny][nx])
-  end
-
-  ways
-end
-
+require 'byebug'
 
 f = File.open(ARGV[0])
-grid = f.readlines.map { |l| l.chomp.split("").map { |i| i.to_i } }
+ll = f.readlines.map { |l| l.chomp.split("").map { |i| i.to_i } }
 
-pg grid
-all_ways = turn(grid, 0, 0, [0, 0], [ [0,0] ], [ [0,0] ], 0)
+DIRS = [[0, 1], [1, 0], [0, -1], [-1, 0]]
 
-puts "Found #{all_ways.min} ways to get to exit."
-puts all_ways.inspect
-puts "Min heatloss is #{all_ways.min}"
+def in_range(pos, arr)
+  pos[0] >= 0 && pos[0] < arr.size && pos[1] >= 0 && pos[1] < arr[0].size
+end
+
+def run(ll, mindist, maxdist)
+  q = Containers::PriorityQueue.new
+  q.push [0, 0, 0, -1], 0
+  seen = Set.new()
+  costs = {}
+
+  while !q.empty? do
+    cost, x, y, dd = q.pop
+    #puts "Pop: #{cost} #{x} #{y} dd=#{dd}"
+
+    # goal!
+    if x == ll.size - 1 and y == ll[0].size - 1
+      ##uts "We did it! #{cost}"
+      return cost
+    end
+
+    next if seen.include? [x, y, dd]
+    seen.add([x, y, dd])
+
+    (0..3).each do |direction|
+
+      costincrease = 0
+      next if direction == dd or (direction + 2) % 4 == dd
+
+      (1..maxdist).each do |distance|
+        nx = x + DIRS[direction][0] * distance
+        ny = y + DIRS[direction][1] * distance
+        if in_range([nx, ny], ll)
+          costincrease += ll[nx][ny]
+
+          next if distance < mindist
+
+          nc = cost + costincrease
+          next if (costs[ [nx, ny, direction] ] || 1e100) <= nc
+
+          costs[[nx, ny, direction]] = nc
+          q.push([nc, nx, ny, direction], -1 * nc)
+          #puts "\tPushed with cost #{-1*nc} #{[nc, nx, ny, direction]}"
+        end
+      end
+    end
+  end
+
+  return -1
+end
+
+puts(run(ll, 1, 3))
+puts(run(ll, 4, 10))
