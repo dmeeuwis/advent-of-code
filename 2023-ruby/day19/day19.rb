@@ -45,7 +45,7 @@ $ACCEPTED = []
 $REJECTED = []
 
 def process part, rule_name, rules
-  puts "\t#{part} #{rule_name}"
+  #puts "\t#{part} #{rule_name}"
   rules.each do |r|
     if r[:property]
       val      = part[r[:property].to_sym]
@@ -87,21 +87,102 @@ def process part, rule_name, rules
       process(part, r[:value], $workflows_by_name[r[:value]])
       return
     end
-    puts "\tDidn't match, carrying on to next rule"
+    #puts "\tDidn't match, carrying on to next rule"
   end
 
   raise "Error: couldn't process part #{part} #{rule_name}"
 end
 
 parts.each do |part|
-  puts part
+  #puts part
   rules = $workflows_by_name['in']
   process part, 'in', rules
 end
 
-byebug
 sum = 0
 $ACCEPTED.each do |part|
   sum += part[:x] + part[:m] + part[:a] + part[:s]
 end
-puts "Sum is #{sum}"
+puts "P1: Sum is #{sum}"
+
+$ACCEPTED = []
+$REJECTED = []
+
+$total = 0
+
+def find_ranges_rules(rules, mins, maxs)
+  rules.each do |rule|
+    find_ranges(rule, mins, maxs)
+  end
+end
+
+def count(mins, maxs)
+  sums = [:x, :m, :a, :s].map do |c|
+    byebug if maxs[c].nil?
+    byebug if mins[c].nil?
+    val = maxs[c] - mins[c]
+  end
+  puts mins
+  puts maxs
+  puts "A"
+  puts sums.inject(:*)
+  puts
+  sums.inject(:*)
+end
+
+def find_ranges(rule, mins, maxs)
+  if rule[:op] == :accept
+    $total += count(mins, maxs)
+    return 
+  end
+
+  if rule[:op] == :reject
+    return 
+  end
+
+  if rule[:property]
+    prop     = rule[:property]
+    comp     = rule[:op]
+    comp_val = rule[:value]
+
+    if comp == '>'
+      mins_copy = mins.clone
+      mins_copy[prop.to_sym] = comp_val+1
+
+      if rule[:send] == 'A'
+        $total += count(mins_copy, maxs)
+        return 
+      elsif rule[:send] == 'R'
+        return
+      else
+        return find_ranges_rules($workflows_by_name[rule[:send]], mins_copy, maxs)
+      end
+    end
+
+    if comp == '<'
+      maxs_copy = maxs.clone
+      maxs_copy[prop.to_sym] = comp_val
+
+      if rule[:send] == 'A'
+        $total += count(mins, maxs_copy)
+        return 
+      elsif rule[:send] == 'R'
+        return
+      else
+        return find_ranges_rules($workflows_by_name[rule[:send]], mins, maxs_copy)
+      end
+    end
+
+  end
+
+  if rule[:op] == :workflow
+    return find_ranges_rules($workflows_by_name[rule[:value]], mins, maxs)
+  end
+
+  byebug # should never occur?
+end
+
+find_ranges_rules($workflows_by_name["in"], 
+                                  { x: 1, m: 1, a: 1, s: 1 },
+                                  { x: 4001, m: 4001, a: 4001, s: 4001 })
+puts "Total is #{$total}"
