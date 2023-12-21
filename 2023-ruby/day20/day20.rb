@@ -62,7 +62,7 @@ class Conjunction
     @dests.each do |d|
       all_inputs_present = $inputs[name].size == @state.size
       p = !(all_inputs_present && @state.values.all?(true))
-      $queue.push [d, @name, p]
+      $queue.push [d, @name, nil]
     end
   end
 end
@@ -127,9 +127,6 @@ puts
 puts
 puts "Ready to start work!"
 puts
-puts
-
-puts "P1: Low pulses: #{PULSE_COUNTS[false]} x high pulses #{PULSE_COUNTS[true]} = #{PULSE_COUNTS[false] * PULSE_COUNTS[true]}"
 
 presses = 0
 while true
