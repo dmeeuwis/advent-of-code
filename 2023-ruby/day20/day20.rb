@@ -26,7 +26,6 @@ end
 
 class FlipFlop
   attr_reader :name
-  attr_reader :state
   def initialize(name, dests)
     @name = name
     @state = false
@@ -49,6 +48,7 @@ end
 
 class Conjunction
   attr_reader :name
+  attr_reader :state
   def initialize(name, dests)
     @name = name
     @state = {}
@@ -58,29 +58,12 @@ class Conjunction
 
   def pulse(input, pulse)
     #puts "#{input} #{pulse} -> #{name}"
-    if $specials.include?(@name) && pulse == false
-      puts "#{@name} saw #{pulse} pulse at step #{$presses}"
-      $specials_low_counts[@name] += 1
-
-      all = $specials_low_counts.keys.all? { |k| $specials_low_counts[k] > 0 }
-      if all
-        puts "All specials have seen a low! at step #{$presses}"
-        exit
-      end
-    end
     @state[input] = pulse
     @dests.each do |d|
-      $queue.push [d, @name, nil]
+      all_inputs_present = $inputs[name].size == @state.size
+      p = !(all_inputs_present && @state.values.all?(true))
+      $queue.push [d, @name, p]
     end
-  end
-
-  def late_pulse
-    all_inputs_present = $inputs[name].size == @state.size
-    !(all_inputs_present && @state.values.all?(true))
-  end
-
-  def inputs
-    @state
   end
 end
 
@@ -109,11 +92,6 @@ class Untyped
 
   def pulse(input, pulse)
     #puts "#{input} #{pulse} -> #{name}"
-    @last = pulse
-  end
-
-  def last
-    @last
   end
 end
 
@@ -127,10 +105,6 @@ def work
       node = Untyped.new work[0] 
     end
 
-    if $registry[work[1]].class == Conjunction
-      work[2] = $registry[work[1]].late_pulse
-    end
-    byebug if work[2].nil?
     PULSE_COUNTS[work[2]] += 1
     node.pulse(work[1], work[2])
   end
@@ -151,33 +125,24 @@ puts "Inputs hash: #{$inputs}"
 
 puts
 puts
-puts "Starting work!"
+puts "Ready to start work!"
+puts
 puts
 
-$specials = ['vr', 'pf', 'ts', 'xd']
-$specials_low_counts = {'vr' => 0, 'pf' => 0, 'ts' => 0, 'xd'=>0}
+puts "P1: Low pulses: #{PULSE_COUNTS[false]} x high pulses #{PULSE_COUNTS[true]} = #{PULSE_COUNTS[false] * PULSE_COUNTS[true]}"
 
-$presses = 0
+presses = 0
 while true
   $registry['broadcaster'].pulse(nil, false)
   work
-  $presses += 1
-  puts $presses if $presses % 1_000_000 == 0
+  presses += 1
+  puts presses if presses % 1_000_000 == 0
 
-  #        vr->kr, pf->pm  ts->dl, xd->vk
-  #inputs = ['ks', 'pm', 'dl', 'vk']
-  #$specials.each do |k|
-  #  if $registry[k].late_pulse == true
-  #    puts "#{k} is high at #{$presses}"    
-  #  end
-  #end
-
-  #if $registry['dt'].late_pulse == false
-  #  puts "dt high at #{$presses}"
-  #end
-
-#  if $registry['rx'].late_pulse == false
-#    puts "rx low at #{presses}"
-#  end
+  dts = $registry['dt'].state
+  dts.keys.each do |k|
+    if dts[k]
+      puts "State #{k} is true at #{presses}"    
+    end
+  end
 end
 
