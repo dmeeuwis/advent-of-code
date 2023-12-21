@@ -30,11 +30,11 @@ class FlipFlop
     @name = name
     @state = false
     @dests = dests
-    #puts "FlipFlop #{@name} -> #{@dests.join(', ')}"
+    puts "FlipFlop #{@name} -> #{@dests.join(', ')}"
   end
 
   def pulse(input, pulse)
-    #puts "#{input} #{pulse} -> #{name}"
+    puts "#{input} #{pulse} -> #{name}"
     return if pulse == true
     if pulse == false
       @state = !@state
@@ -48,21 +48,20 @@ end
 
 class Conjunction
   attr_reader :name
-  attr_reader :state
   def initialize(name, dests)
     @name = name
     @state = {}
     @dests = dests
-    #puts "Conjunction #{@name} -> #{@dests.join(', ')}"
+    puts "Conjunction #{@name} -> #{@dests.join(', ')}"
   end
 
   def pulse(input, pulse)
-    #puts "#{input} #{pulse} -> #{name}"
+    puts "#{input} #{pulse} -> #{name}"
     @state[input] = pulse
     @dests.each do |d|
       all_inputs_present = $inputs[name].size == @state.size
       p = !(all_inputs_present && @state.values.all?(true))
-      $queue.push [d, @name, nil]
+      $queue.push [d, @name, p]
     end
   end
 end
@@ -72,11 +71,11 @@ class Broadcast
   def initialize(name, dests)
     @name = name
     @dests = dests
-    #puts "Broadcast #{@name} -> #{@dests.join(', ')}"
+    puts "Broadcast #{@name} -> #{@dests.join(', ')}"
   end
 
   def pulse(input, pulse)
-    #puts "#{input} #{pulse} -> #{name}"
+    puts "#{input} #{pulse} -> #{name}"
     @dests.each do |d|
       $queue.push [d, @name, pulse]
     end
@@ -87,11 +86,11 @@ class Untyped
   attr_reader :name
   def initialize(name)
     @name = name
-    #puts "Untype module #{name}"
+    puts "Untype module #{name}"
   end
 
   def pulse(input, pulse)
-    #puts "#{input} #{pulse} -> #{name}"
+    puts "#{input} #{pulse} -> #{name}"
   end
 end
 
@@ -127,19 +126,15 @@ puts
 puts
 puts "Ready to start work!"
 puts
+puts
+PRESSES = 1000
 
-presses = 0
-while true
+PRESSES.times do
+  PULSE_COUNTS[false] += 1
   $registry['broadcaster'].pulse(nil, false)
   work
-  presses += 1
-  puts presses if presses % 1_000_000 == 0
-
-  dts = $registry['dt'].state
-  dts.keys.each do |k|
-    if dts[k]
-      puts "State #{k} is true at #{presses}"    
-    end
-  end
+  puts 
+  puts 
 end
 
+puts "Low pulses: #{PULSE_COUNTS[false]} x high pulses #{PULSE_COUNTS[true]} = #{PULSE_COUNTS[false] * PULSE_COUNTS[true]}"
