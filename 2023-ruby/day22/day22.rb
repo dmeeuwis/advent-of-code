@@ -17,6 +17,8 @@ end
 
 puts bricks.inspect
 
+bricks = bricks.sort_by { |x| x.map {|y| y[2]}.min }
+
 expand_bricks = bricks.map do |b|
   puts "Starting brick #{b}"
   next [b[0]] if b[0] == b[1]  # single cube
@@ -68,20 +70,23 @@ end
 
 def fall brick, brick_i, index_space
   if can_fall? brick, brick_i, index_space
+    puts "Brick #{brick} is falling..."
     brick_orig = clone(brick)
     brick.each do |cube|
       index_space[cube] = nil
       cube[2] -= 1
       index_space[cube] = brick_i
     end
-    puts "Brick #{brick_i} fell from #{brick_orig} to #{brick}."
+    puts "Brick fell to #{brick}"
+    puts
+    #puts "Check: old pos start=#{index_space[brick_orig[0]]} end=#{index_space[brick_orig[-1]]}"
     return true
   end
   false
 end
 
 def all_fall_down expand_bricks, index_space
-  puts "all_fall_down: #{expand_bricks.inspect}, #{index_space.inspect}"
+  #puts "all_fall_down: #{expand_bricks.inspect}, #{index_space.inspect}"
   count = 0
   expand_bricks.each_with_index do |cubes, brick_i|
     while fall(cubes, brick_i, index_space)
