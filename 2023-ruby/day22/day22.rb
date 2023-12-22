@@ -89,10 +89,12 @@ def all_fall_down expand_bricks, index_space
   #puts "all_fall_down: #{expand_bricks.inspect}, #{index_space.inspect}"
   count = 0
   expand_bricks.each_with_index do |cubes, brick_i|
+    fall = false
     while fall(cubes, brick_i, index_space)
-      count += 1
+      fall = true
       #puts "\tWaiting on brick #{brick_i}"
     end
+    count += 1 if fall
   end
   count
 end
@@ -106,6 +108,7 @@ puts "Bricks have settled again: #{count}"
 
 
 p1_count = 0
+p2_count = 0
 expand_bricks.each_with_index do |brick, brick_i|
   expand_bricks_clone = clone(expand_bricks)
   index_space_clone = clone(index_space)
@@ -123,35 +126,8 @@ expand_bricks.each_with_index do |brick, brick_i|
     p1_count += 1
   else 
     puts "Brick #{brick_i} is NOT safe to disintegrate"
+    p2_count += count
   end
 end
 puts "P1 count: #{p1_count}"
-
-#depends_on = { }
-#expand_bricks.each_with_index do |cubes, brick_i|
-#  below_bricks = []
-#  cubes.all? do |coord|
-#    below_coord = [coord[0], coord[1], coord[2]-1]
-#    if index_space[below_coord] != nil && index_space[below_coord] != brick_i
-#      below_bricks.push index_space[below_coord]
-#    end
-#  end
-#  depends_on[brick_i] = below_bricks
-#  puts "Brick #{brick_i} above on #{depends_on[brick_i]}"
-#end
-
-#supports = Hash.new { |h, k| h[k] = [] }
-#expand_bricks.each_with_index do |cubes, brick_i|
-#  cubes.all? do |coord|
-#    above_coord = [coord[0], coord[1], coord[2]+1]
-#    if index_space[above_coord] != nil && index_space[above_coord] != brick_i
-#      supports[brick_i].push index_space[above_coord]
-#      puts "Brick #{brick_i} is under #{index_space[above_coord]}"
-#    end
-#  end
-#end
-#puts "Supports: #{supports.inspect}"
-
-
-#p1_count = 0
-#puts "P1 count: #{p1_count}"
+puts "P2 count: #{p2_count}"
