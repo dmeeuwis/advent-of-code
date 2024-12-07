@@ -29,16 +29,33 @@ def check_update(update, before_rules)
   true
 end
 
+def check_permutations(update, before_rules)
+  puts "Looking for permutations for #{update}"
+  all_possible = update.permutation.to_a
+  puts "Found #{all_possible.size} permutations"
+  all_possible.each do |permutation|
+    res = check_update(permutation, before_rules)
+    if res
+      middle = permutation[permutation.size/2]
+      return middle
+    end
+  end
+  nil
+end
+
 sum = 0
 updates.each do |update|
   res = check_update(update, before_rules)
-  if res
-    # get the middle element
-    raise "Invalid update" if update.size.even?
-    middle = update[update.size/2]
-    sum += middle
+  if !res
+    puts "Found bad update: #{update}"
+    res = check_permutations(update, before_rules)
+    if !res
+      puts "Found invalid update: #{update}"
+    else 
+      puts "Found permutation for #{update} with middle #{res}"
+      sum += res
+    end
   end
-  puts "#{update} is valid? #{res}"
 end
 
 puts
