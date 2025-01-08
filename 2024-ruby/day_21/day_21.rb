@@ -1,3 +1,4 @@
+require 'byebug'
 
 L1_MAP = {
   ["A", "0"] => "<",
@@ -122,13 +123,61 @@ L1_MAP = {
   ["9", "8"] => "<"
 }
 
-codes = File.readlines(ARGV[0]).map(&:strip)
-codes.each do |code|
+L2_MAP = {
+  ["A", "^"] => "<",
+  ["A", "v"] => "<v",
+  ["A", "<"] => "v<<",
+  ["A", ">"] => "v",
+
+  ["^", "A"] => ">",
+  ["^", "v"] => "v",
+  ["^", "<"] => "v<",
+  ["^", ">"] => "v>",
+
+  ["v", "A"] => "^>",
+  ["v", "^"] => "^",
+  ["v", "<"] => "<",
+  ["v", ">"] => ">",
+
+  ["<", "A"] => ">>^",
+  ["<", "^"] => ">^",
+  ["<", "v"] => ">",
+  ["<", ">"] => ">>",
+
+  [">", "A"] => "^",
+  [">", "^"] => "^<",
+  [">", "v"] => "<",
+  [">", "<"] => "<<"
+}
+
+def l1(code)
   code = "A" + code
   entries = []
   code.split('').each_cons(2) do |pair|
     entries.push(L1_MAP[pair] + "A")
   end
 
-  puts entries.join
+  entries.join
+end
+
+def l2(code)
+  code = "A" + code
+  entries = []
+  code.split('').each_cons(2) do |pair|
+    byebug if L2_MAP[pair].nil?
+    entries.push(L2_MAP[pair] + "A")
+  end
+
+  entries.join
+end
+
+
+codes = File.readlines(ARGV[0]).map(&:strip)
+codes.each do |code|
+  puts "Code: #{code}"
+  puts "L1: #{l1(code)}"
+  puts "L2: #{l2(l1(code))}"
+  puts "L3: #{l2(l2(l1(code)))}"
+  puts "L4: #{l2(l2(l2(l1(code))))}"
+  puts 
 end
