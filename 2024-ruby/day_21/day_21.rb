@@ -124,30 +124,35 @@ L1_MAP = {
 }
 
 L2_MAP = {
-  ["A", "^"] => "<",
-  ["A", "v"] => "<v",
-  ["A", "<"] => "v<<",
-  ["A", ">"] => "v",
+  ["A", "^"] => "<A",
+  ["A", "v"] => "<vA",
+  ["A", "<"] => "v<<A",
+  ["A", ">"] => "vA",
+  ["A", "A"] => "A",
 
-  ["^", "A"] => ">",
-  ["^", "v"] => "v",
-  ["^", "<"] => "v<",
-  ["^", ">"] => "v>",
+  ["^", "A"] => ">A",
+  ["^", "v"] => "vA",
+  ["^", "<"] => "v<A",
+  ["^", ">"] => "v>A",
+  ["^", "^"] => "A",
 
-  ["v", "A"] => "^>",
-  ["v", "^"] => "^",
-  ["v", "<"] => "<",
-  ["v", ">"] => ">",
+  ["v", "A"] => "^>A",
+  ["v", "^"] => "^A",
+  ["v", "<"] => "<A",
+  ["v", ">"] => ">A",
+  ["v", "v"] => "A",
 
-  ["<", "A"] => ">>^",
-  ["<", "^"] => ">^",
-  ["<", "v"] => ">",
-  ["<", ">"] => ">>",
+  ["<", "A"] => ">>^A",
+  ["<", "^"] => ">^A",
+  ["<", "v"] => ">A",
+  ["<", ">"] => ">>A",
+  ["<", "<"] => "A",
 
-  [">", "A"] => "^",
-  [">", "^"] => "^<",
-  [">", "v"] => "<",
-  [">", "<"] => "<<"
+  [">", "A"] => "^A",
+  [">", "^"] => "^<A",
+  [">", "v"] => "<A",
+  [">", "<"] => "<<A",
+  [">", ">"] => "A",
 }
 
 def l1(code)
@@ -165,19 +170,27 @@ def l2(code)
   entries = []
   code.split('').each_cons(2) do |pair|
     byebug if L2_MAP[pair].nil?
-    entries.push(L2_MAP[pair] + "A")
+    entries.push(L2_MAP[pair])
   end
 
   entries.join
 end
 
-
+sum = 0
 codes = File.readlines(ARGV[0]).map(&:strip)
 codes.each do |code|
   puts "Code: #{code}"
   puts "L1: #{l1(code)}"
   puts "L2: #{l2(l1(code))}"
   puts "L3: #{l2(l2(l1(code)))}"
-  puts "L4: #{l2(l2(l2(l1(code))))}"
-  puts 
+
+  code_part = l2(l2(l1(code))).size
+  numeric_part = code.gsub(/[A-Z]/, '').to_i
+  complexity = code_part * numeric_part
+  puts  "Complexity: #{code_part} * #{numeric_part} = #{complexity}"
+  puts
+
+  sum += complexity
 end
+
+puts "Sum: #{sum}"
